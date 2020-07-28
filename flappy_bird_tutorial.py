@@ -12,6 +12,8 @@ WIN_HEIGHT = 400
 BIRD_IMGS = [pygame.image.load(os.path.join("imgs", "bird1.png")),
             pygame.image.load(os.path.join("imgs", "bird2.png")),
             pygame.image.load(os.path.join("imgs", "bird3.png"))]
+BIRD_RED = pygame.image.load(os.path.join("imgs", "bird_red.png "))
+BIRD_RED = pygame.transform.scale(BIRD_RED, (45, 54))
 PIPE_IMG = pygame.image.load(os.path.join("imgs", "pipe.png"))
 BASE_IMG = pygame.image.load(os.path.join("imgs", "base.png"))
 BG_IMG = pygame.image.load(os.path.join("imgs", "bg.png"))
@@ -19,6 +21,7 @@ STAT_FONT = pygame.font.SysFont("comiscans", 25)
 
 class Bird:
     IMGS = BIRD_IMGS
+    RED = BIRD_RED
     MAX_ROTATION = 25
     ROT_VEL = 20
     ANIMATION_TIME = 5
@@ -49,7 +52,7 @@ class Bird:
         if d <0:
             d -= 2
 
-        self.y = self.y + d/1.2
+        self.y = self.y + d/2
 
         if d < 0 or self.y < self.height + 50:
             if self.tilt < self.MAX_ROTATION:
@@ -81,11 +84,22 @@ class Bird:
         new_rect = rotated_image.get_rect(center = self.img.get_rect(topleft = (self.x, self.y)).center)
         win.blit(rotated_image, new_rect.topleft)
 
+    def draw_red(self, win):
+        self.img = self.RED
+
+        rotated_image = pygame.transform.rotate(self.img, self.tilt)
+        new_rect = rotated_image.get_rect(center = self.img.get_rect(topleft = (self.x, self.y)).center)
+        win.blit(rotated_image, new_rect.topleft)
+
     def get_mask(self):
         return pygame.mask.from_surface(self.img)
 
+
+    def oust(self):
+        self.y = 10000
+
 class Pipe:
-    GAP = 120
+    GAP = 130
     VEL = 2.5
 
     def __init__(self, x):
@@ -154,7 +168,7 @@ class Base:
 
 
 
-def draw_window(win, bird, pipes, base, score):
+def draw_window(win, birds, pipes, base, score):
     win.blit(BG_IMG, (0, 0))
 
     for pipe in pipes:
@@ -165,12 +179,15 @@ def draw_window(win, bird, pipes, base, score):
 
     base.draw(win)
 
-    bird.draw(win)
+    birds[1].draw(win)
+    birds[0].draw_red(win)
     pygame.display.update()
 
 
 def main():
-    bird = Bird(115, 175)
+    bird1 = Bird(110, 175)
+    bird2 = Bird(120, 175)
+    birds= [bird1, bird2]
     base = Base(360)
     pipes = [Pipe(300)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
@@ -180,21 +197,36 @@ def main():
     run = True
     while run:
         clock.tick(30)
-        # bird.move()
+        bird1.move()
+        bird2.move()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
+            if event.type == pygame.KEYDOWN :
+                if event.key == pygame.K_SPACE:
+                    if 0 < (bird1.y - bird2.y) < 12:
+                        bird2.y -= 5
+                    bird1.jump()
+                if event.key == pygame.K_UP:
+                    if 0 < (bird2.y - bird1.y) < 12:
+                        bird1.y -= 5
+                    bird2.jump()
+
 
         rem = []
         add_pipe = False
         for pipe in pipes:
-            if pipe.collide(bird):
-                pass
+            if pipe.collide(bird1):
+                bird1.oust()
+
+            if pipe.collide(bird2):
+                bird2.oust()
+
 
             if pipe.x + pipe.PIPE_TOP.get_width() < 0:
                 rem.append(pipe)
 
-            if not pipe.passed and pipe.x < bird.x:
+            if not pipe.passed and (pipe.x < bird1.x or pipe.x < bird2.x):
                 pipe.passed = True
                 add_pipe = True
 
@@ -206,11 +238,14 @@ def main():
         for r in rem:
             pipes.remove(r)
 
-        if bird.y +  bird.img.get_height() >= 360:
-            pass
+        # if bird.y +  bird.img.get_height() >= 360:
+        #     pass
+
+        if bird1.y > 1000 and bird2.y > 1000:
+            break
 
         base.move()
-        draw_window(win, bird, pipes, base, score)
+        draw_window(win, birds, pipes, base, score)
 
     pygame.quit()
     quit()
